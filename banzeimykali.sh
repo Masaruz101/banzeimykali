@@ -2008,15 +2008,29 @@ install_vscode() {
     # install vscode from microsoft
     echo -e "\n  ${greenplus} Installing VSCode"
 
-    is_installed "wget gpg apt_transport_https"
+    is_installed "wget gpg apt-transport-https"
 
-    msft_gpg_tmp=$(mktemp --suffix=.gpg)
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > ${msft_gpg_tmp}
-    sudo install -D -o root -g root -m 644 ${msft_gpg_tmp} /etc/apt/keyrings/packages.microsoft.gpg
-    echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
-    rm -f ${msft_gpg_tmp}
-    #required-apt-update
-    apt_update
+    # remove a manually-created repo/keyring from older banzeimykali versions:
+    # once the code package is installed, its own postinst writes
+    # /etc/apt/sources.list.d/vscode.sources with a different Signed-By for the
+    # same repo, and apt refuses to read sources at all when the two conflict
+    if [[ -f /etc/apt/sources.list.d/vscode.list ]]
+      then
+        rm -f /etc/apt/sources.list.d/vscode.list
+        rm -f /etc/apt/keyrings/packages.microsoft.gpg
+    fi
+
+    if command -v code >/dev/null 2>&1
+      then
+        echo -e "${spaces}${greenminus} VSCode already installed, skipping"
+      else
+        echo -e "${spaces}${greenplus} Downloading latest VSCode .deb from Microsoft"
+        vscode_deb_tmp=$(mktemp --suffix=.deb)
+        wget -q "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64" -O ${vscode_deb_tmp}
+        apt -y install ${vscode_deb_tmp}
+        rm -f ${vscode_deb_tmp}
+    fi
+
     is_installed code
     }
 
